@@ -300,9 +300,12 @@ export default function StudyMindAI() {
     const { name, email, password, classe, birthYear, privacy } = regForm;
     if (!name||!email||!password||!birthYear) { setAuthErr("Compila tutti i campi obbligatori."); setAuthLoad(false); return; }
     if (password.length < 6) { setAuthErr("Password di almeno 6 caratteri."); setAuthLoad(false); return; }
-    const age = new Date().getFullYear() - parseInt(birthYear);
+    const year = parseInt(birthYear);
+    const currentYear = new Date().getFullYear();
+    if (isNaN(year) || year < 1900 || year > currentYear) { setAuthErr("Anno di nascita non valido."); setAuthLoad(false); return; }
+    const age = currentYear - year;
     if (age < 16) { setAuthErr("Devi avere almeno 16 anni per registrarti a StudyMind AI."); setAuthLoad(false); return; }
-    if (age > 100 || parseInt(birthYear) < 1900) { setAuthErr("Anno di nascita non valido."); setAuthLoad(false); return; }
+    if (age > 100) { setAuthErr("Anno di nascita non valido."); setAuthLoad(false); return; }
     if (!privacy) { setAuthErr("Devi accettare la Privacy Policy per continuare."); setAuthLoad(false); return; }
     try { await signUp({ name, email, password, classe, birthYear }); }
     catch (e) { setAuthErr(e.message || "Errore durante la registrazione."); }
@@ -561,6 +564,7 @@ Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e
               <input className="af-input" type="password" placeholder="••••••••" value={regForm.password} onChange={e=>setRegForm(p=>({...p,password:e.target.value}))}/>
               <div className="fl">Anno di nascita * (devi avere almeno 16 anni)</div>
               <input className="af-input" type="number" placeholder="Es. 2005" min="1900" max={new Date().getFullYear()-16}
+                onInput={e=>{ if(e.target.value.length>4) e.target.value=e.target.value.slice(0,4); }}
                 value={regForm.birthYear} onChange={e=>setRegForm(p=>({...p,birthYear:e.target.value}))}/>
               <div className="fl">Classe (opzionale)</div>
               <input className="af-input" placeholder="Es. 5° Informatica" value={regForm.classe} onChange={e=>setRegForm(p=>({...p,classe:e.target.value}))}/>
