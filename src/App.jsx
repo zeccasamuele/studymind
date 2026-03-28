@@ -319,15 +319,15 @@ export default function StudyMindAI() {
     addMsg("user", txt); setChatLoad(true);
     const ctx=upcoming.slice(0,8).map(e=>`- ${e.title} (${e.date}, ${TL[e.type]}, priorità ${e.priority}${e.note?", nota:"+e.note:""})`).join("\n");
     try {
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:1000,
-          system:`Sei StudyMind AI, assistente personale per ${profile?.name}, studente al 5° anno di Informatica. Ama il basket.
+      const systemPrompt = `Sei StudyMind AI, assistente personale per ${profile?.name}, studente al 5° anno di Informatica. Ama il basket.
 Data oggi: ${today}. Classe: ${profile?.classe||"5° Informatica"}.
 Impegni:\n${ctx||"Nessuno"}
 Sessioni pomodoro oggi: ${pomSes}.
-Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e specifici basati sui suoi impegni reali.`,
+Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e specifici basati sui suoi impegni reali.`;
+      const res=await fetch("/api/chat",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          system: systemPrompt,
           messages:[...msgs.slice(-10).map(m=>({role:m.role,content:m.text})),{role:"user",content:txt}]
         })
       });
