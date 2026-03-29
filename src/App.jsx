@@ -166,7 +166,7 @@ function usePomodoro(userId) {
   useEffect(() => {
     if (!userId) return;
     supabase.from("pomodoro_sessions").select("count").eq("user_id", userId).eq("date", today).maybeSingle()
-	.then(({ data }) => { if (data) setPomSes(data.count); });
+      .then(({ data }) => { if (data) setPomSes(data.count); });
   }, [userId]);
 
   const incrementSession = async (preset) => {
@@ -231,6 +231,7 @@ export default function StudyMindAI() {
   const [newEv,   setNewEv]   = useState({ title:"", date:"", type:"school", priority:"medium", note:"" });
   const [selEv,   setSelEv]   = useState(null);
   const [weekOff, setWeekOff] = useState(0);
+  const [selDay,  setSelDay]  = useState(null);
   const [chatIn,  setChatIn]  = useState("");
   const [chatLoad,setChatLoad]= useState(false);
 
@@ -319,15 +320,15 @@ export default function StudyMindAI() {
     addMsg("user", txt); setChatLoad(true);
     const ctx=upcoming.slice(0,8).map(e=>`- ${e.title} (${e.date}, ${TL[e.type]}, priorità ${e.priority}${e.note?", nota:"+e.note:""})`).join("\n");
     try {
-      const systemPrompt = `Sei StudyMind AI, assistente personale per ${profile?.name}, studente al 5° anno di Informatica. Ama il basket.
-Data oggi: ${today}. Classe: ${profile?.classe||"5° Informatica"}.
-Impegni:\n${ctx||"Nessuno"}
-Sessioni pomodoro oggi: ${pomSes}.
-Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e specifici basati sui suoi impegni reali.`;
-      const res=await fetch("/api/chat",{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          system: systemPrompt,
+          model:"claude-sonnet-4-20250514", max_tokens:1000,
+          system:`Sei StudyMind AI, assistente personale per ${profile?.name}, studente${profile?.classe ? " di "+profile.classe : ""}.
+Data oggi: ${today}.
+Impegni:\n${ctx||"Nessuno"}
+Sessioni pomodoro oggi: ${pomSes}.
+Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e specifici basati sui suoi impegni reali.`,
           messages:[...msgs.slice(-10).map(m=>({role:m.role,content:m.text})),{role:"user",content:txt}]
         })
       });
@@ -467,7 +468,7 @@ Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e
       .csug{display:flex;gap:5px;padding:10px 24px 8px;overflow-x:auto;flex-shrink:0}
       .sg{white-space:nowrap;padding:6px 12px;border-radius:20px;font-size:11.5px;background:${C.card};border:1px solid ${C.border};color:${C.muted};cursor:pointer;transition:all .18s;flex-shrink:0}
       .sg:hover{border-color:${C.accent};color:${C.accent}}
-      .cbar{padding:10px 24px 22px;border-top:1px solid ${C.border};display:flex;gap:9px;background:${C.bg};flex-shrink:0}
+      .cbar{padding:10px 24px 22px;border-top:1px solid ${C.border};display:flex;gap:9px;background:${C.bg};flex-shrink:0;position:sticky;bottom:0;z-index:10}
       .cinp{flex:1;background:${C.card};border:1px solid ${C.border};border-radius:13px;padding:11px 14px;color:${C.text};font-family:${FB};font-size:13.5px;outline:none;transition:border-color .18s}
       .cinp:focus{border-color:${C.accent}}
       .cinp::placeholder{color:${C.muted}}
@@ -683,31 +684,53 @@ Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e
             <div className="top-bar"><div className="top-logo">Study<em>Mind</em> AI</div><div className="avatar" onClick={()=>setView("profile")}>{profile?.name?.charAt(0)?.toUpperCase()||"?"}</div></div>
             <div className="sc" style={{paddingTop:4}}>
               <div className="wnav">
-                <button onClick={()=>setWeekOff(o=>o-1)}>‹</button>
-                <div className="wtitle">{fmtDate(wd[0])} – {fmtDate(wd[6])}</div>
-                <button onClick={()=>setWeekOff(o=>o+1)}>›</button>
+                <button onClick={()=>{setWeekOff(o=>o-1);setSelDay(null);}}>‹</button>
+                <div className="wtitle">{selDay ? fmtDate(selDay) : `${fmtDate(wd[0])} – ${fmtDate(wd[6])}`}</div>
+                <button onClick={()=>{setWeekOff(o=>o+1);setSelDay(null);}}>›</button>
               </div>
               <div className="wrow">
                 {wd.map(d=>{
                   const de=events.filter(e=>e.date===d&&!e.done);
                   const top=de.sort((a,b)=>["high","medium","low"].indexOf(a.priority)-["high","medium","low"].indexOf(b.priority))[0];
-                  return <div key={d} className="dcol">
+                  const isSel=selDay===d;
+                  return <div key={d} className="dcol" onClick={()=>setSelDay(isSel?null:d)} style={{cursor:"pointer"}}>
                     <div className="dname">{DAYS[new Date(d+"T12:00:00").getDay()]}</div>
-                    <div className={`dnum ${d===today?"td":""} ${de.length>0&&d!==today?"hev":""}`} style={{"--dc":top?PC[top.priority]:C.accent}}>{new Date(d+"T12:00:00").getDate()}</div>
+                    <div className={`dnum ${d===today&&!isSel?"td":""} ${isSel?"td":""} ${de.length>0&&d!==today&&!isSel?"hev":""}`}
+                      style={{"--dc":top?PC[top.priority]:C.accent, background:isSel?C.accent:undefined, color:isSel?"#07070A":undefined}}>
+                      {new Date(d+"T12:00:00").getDate()}
+                    </div>
                   </div>;
                 })}
               </div>
-              {wd.map(d=>{
-                const de=events.filter(e=>e.date===d);
-                if(!de.length) return null;
-                return <div key={d}>
-                  <div className="slbl">{["Dom","Lun","Mar","Mer","Gio","Ven","Sab"][new Date(d+"T12:00:00").getDay()]} {fmtDate(d)}</div>
-                  {de.map(ev=><div key={ev.id} className="cev" onClick={()=>setSelEv(ev)} style={{opacity:ev.done?.4:1}}>
-                    <div className="cdot" style={{background:PC[ev.priority]}}/><span>{TI[ev.type]} {ev.title}</span>{ev.done&&<span style={{marginLeft:"auto",fontSize:10,color:C.green}}>✓</span>}
-                  </div>)}
-                </div>;
-              })}
-              {wd.every(d=>!events.find(e=>e.date===d))&&<div className="empty"><span className="big">📭</span>Nessun impegno questa settimana</div>}
+              {/* Se c'è un giorno selezionato mostra solo quello */}
+              {selDay ? (
+                <>
+                  <div className="slbl">{["Dom","Lun","Mar","Mer","Gio","Ven","Sab"][new Date(selDay+"T12:00:00").getDay()]} {fmtDate(selDay)}</div>
+                  {events.filter(e=>e.date===selDay).length===0
+                    ? <div className="empty"><span className="big">📭</span>Nessun impegno in questo giorno</div>
+                    : events.filter(e=>e.date===selDay).map(ev=>(
+                        <div key={ev.id} className="cev" onClick={()=>setSelEv(ev)} style={{opacity:ev.done?.4:1}}>
+                          <div className="cdot" style={{background:PC[ev.priority]}}/><span>{TI[ev.type]} {ev.title}</span>{ev.done&&<span style={{marginLeft:"auto",fontSize:10,color:C.green}}>✓</span>}
+                        </div>
+                      ))
+                  }
+                </>
+              ) : (
+                /* Altrimenti mostra tutta la settimana */
+                <>
+                  {wd.map(d=>{
+                    const de=events.filter(e=>e.date===d);
+                    if(!de.length) return null;
+                    return <div key={d}>
+                      <div className="slbl">{["Dom","Lun","Mar","Mer","Gio","Ven","Sab"][new Date(d+"T12:00:00").getDay()]} {fmtDate(d)}</div>
+                      {de.map(ev=><div key={ev.id} className="cev" onClick={()=>setSelEv(ev)} style={{opacity:ev.done?.4:1}}>
+                        <div className="cdot" style={{background:PC[ev.priority]}}/><span>{TI[ev.type]} {ev.title}</span>{ev.done&&<span style={{marginLeft:"auto",fontSize:10,color:C.green}}>✓</span>}
+                      </div>)}
+                    </div>;
+                  })}
+                  {wd.every(d=>!events.find(e=>e.date===d))&&<div className="empty"><span className="big">📭</span>Nessun impegno questa settimana</div>}
+                </>
+              )}
             </div>
             <button className="fab" onClick={()=>setShowAdd(true)}>＋</button>
           </>}
@@ -772,12 +795,14 @@ Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e
               <div ref={chatEnd}/>
             </div>
             <div className="csug">
-	      {["Cosa studiare oggi?","Pianifica la settimana","Ho una verifica domani!","Come gestisco basket e scuola?"].map(s=>(
-	      <button key={s} className="sg" onClick={()=>{ setChatIn(s); setTimeout(()=>sendMsg(), 100); }}>{s}</button>
-	      ))}
+              {["Cosa studiare oggi?","Pianifica la settimana","Ho una verifica domani!","Quanti giorni mi restano?"].map(s=>(
+                <button key={s} className="sg" onClick={()=>{ setChatIn(s); }}>{s}</button>
+              ))}
             </div>
             <div className="cbar">
-              <input className="cinp" placeholder="Chiedi al tuo AI Coach..." value={chatIn} onChange={e=>setChatIn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()}/>
+              <input className="cinp" placeholder="Scrivi un messaggio..." value={chatIn}
+                onChange={e=>setChatIn(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendMsg(); } }}/>
               <button className="sbtn" onClick={sendMsg} disabled={chatLoad||!chatIn.trim()}>➤</button>
             </div>
           </>}
