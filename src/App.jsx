@@ -772,7 +772,9 @@ Rispondi in italiano, tono amichevole e diretto, max 4 frasi. Consigli pratici e
               <div ref={chatEnd}/>
             </div>
             <div className="csug">
-              {["Cosa studiare oggi?","Pianifica la settimana","Ho una verifica domani!","Come gestisco basket e scuola?"].map(s=><button key={s} className="sg" onClick={()=>setChatIn(s)}>{s}</button>)}
+	      {["Cosa studiare oggi?","Pianifica la settimana","Ho una verifica domani!","Come gestisco basket e scuola?"].map(s=>(
+	      <button key={s} className="sg" onClick={()=>{ setChatIn(s); setTimeout(()=>sendMsg(), 100); }}>{s}</button>
+	      ))}
             </div>
             <div className="cbar">
               <input className="cinp" placeholder="Chiedi al tuo AI Coach..." value={chatIn} onChange={e=>setChatIn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()}/>
