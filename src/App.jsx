@@ -165,8 +165,8 @@ function usePomodoro(userId) {
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from("pomodoro_sessions").select("count").eq("user_id", userId).eq("date", today).single()
-      .then(({ data }) => { if (data) setPomSes(data.count); });
+    supabase.from("pomodoro_sessions").select("count").eq("user_id", userId).eq("date", today).maybeSingle()
+	.then(({ data }) => { if (data) setPomSes(data.count); });
   }, [userId]);
 
   const incrementSession = async (preset) => {
