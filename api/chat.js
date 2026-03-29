@@ -1,14 +1,8 @@
 // api/chat.js
 // Vercel Serverless Function — fa da proxy tra il frontend e Anthropic
-// In questo modo la chiave API non è mai esposta nel browser
 
 export default async function handler(req, res) {
-  // Permetti solo POST
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  // Headers CORS — permetti chiamate dal tuo dominio
+  // Headers CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -18,18 +12,29 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { messages, system } = req.body;
-
-  if (!messages || !system) {
-    return res.status(400).json({ error: "Missing messages or system prompt" });
+  // Permetti solo POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
+    // Parsa manualmente il body se necessario
+    let body = req.body;
+    if (typeof body === "string") {
+      body = JSON.parse(body);
+    }
+
+    const { messages, system } = body;
+
+    if (!messages || !system) {
+      return res.status(400).json({ error: "Missing messages or system prompt" });
+    }
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY, // chiave segreta solo sul server
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
@@ -50,6 +55,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("Anthropic API error:", error);
-    return res.status(500).json({ error: "Errore interno del server" });
+    return res.status(500).json({ error: error.message || "Errore interno del server" });
   }
 }
